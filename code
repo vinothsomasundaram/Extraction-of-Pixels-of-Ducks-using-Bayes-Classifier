@@ -1,0 +1,55 @@
+import cv2
+import numpy as np
+from scipy.stats import multivariate_normal
+data_list = []
+for i in range(55):
+    filename = ‘D:<\\yourpath\\Duck\\duck'+str(i+1)+'.jpg'>
+    img = cv2.imread(filename)
+    #cv2.imshow('image', img)
+    data_matrix = np.reshape(img, (img.shape[0]*img.shape[1], 3)) # reshape the matrix
+    data_list.append(data_matrix)
+    duck_data = np.vstack(data_list)
+    #print (duck_data)
+for i in range(14):
+    non_duck_img = cv2.imread(‘D:<\\yourpath\\Non_Duck\\nonduck'+str(i+1)+'.jpg'>)
+    non_duck_matrix = np.reshape(non_duck_img, (non_duck_img.shape[0]*non_duck_img.shape[1], 3))
+    data_list.append(non_duck_matrix)
+    #print (non_duck_matrix.shape)
+    #get duck data
+        #get nonduck data
+    non_duck_data = np.vstack(data_list)   
+#     cv2.imshow('nonduck', non_duck_img)
+#     cv2.waitKey(0)
+#     cv2.destroyAllWindows()
+
+# ### we start to build the Gaussian model for duck pixels
+#duck mu and covariance
+mu_duck = np.mean(duck_data, axis=0)
+cov_duck = np.cov(duck_data.T)
+#non_duck mu and covariance
+mu_non_duck = np.mean(non_duck_data, axis=0)
+cov_non_duck = np.cov(non_duck_data.T)
+print (mu_non_duck)
+print (cov_non_duck)
+#Probability with non_duck sample
+test_img1 = cv2.imread(‘D:<\\yourpath\\full_duck7.jpg'>)
+test_data_matrix1 = np.reshape(test_img1, (test_img1.shape[0]*test_img1.shape[1], 3))
+#print (test_data_matrix)
+
+prob_non_ducks1 = multivariate_normal.pdf(test_data_matrix1, mean=mu_non_duck, cov=cov_non_duck)
+prob_ducks1 = multivariate_normal.pdf(test_data_matrix1, mean=mu_duck, cov=cov_duck)
+
+duck_mask = prob_duck1>prob_non_duck1
+
+#duck_mask = prob_ducks1<5.0e-07
+
+duck_mask = np.reshape(duck_mask, (test_img1.shape[0],test_img1.shape[1]))
+out_img = test_img1.copy()
+for c in range(3):
+      out_img[:,:,c] = test_img1[:,:,c]*duck_mask
+cv2.namedWindow("out", cv2.WINDOW_NORMAL)
+cv2.imshow('out', out_img)
+cv2.namedWindow("original", cv2.WINDOW_NORMAL)
+cv2.imshow('original', test_img1)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
