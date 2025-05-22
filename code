@@ -1,55 +1,71 @@
 import cv2
 import numpy as np
+import urllib.request
+from io import BytesIO
 from scipy.stats import multivariate_normal
-data_list = []
-for i in range(55):
-    filename = ‘D:<\\yourpath\\Duck\\duck'+str(i+1)+'.jpg'>
-    img = cv2.imread(filename)
-    #cv2.imshow('image', img)
-    data_matrix = np.reshape(img, (img.shape[0]*img.shape[1], 3)) # reshape the matrix
-    data_list.append(data_matrix)
-    duck_data = np.vstack(data_list)
-    #print (duck_data)
-for i in range(14):
-    non_duck_img = cv2.imread(‘D:<\\yourpath\\Non_Duck\\nonduck'+str(i+1)+'.jpg'>)
-    non_duck_matrix = np.reshape(non_duck_img, (non_duck_img.shape[0]*non_duck_img.shape[1], 3))
-    data_list.append(non_duck_matrix)
-    #print (non_duck_matrix.shape)
-    #get duck data
-        #get nonduck data
-    non_duck_data = np.vstack(data_list)   
-#     cv2.imshow('nonduck', non_duck_img)
-#     cv2.waitKey(0)
-#     cv2.destroyAllWindows()
 
-# ### we start to build the Gaussian model for duck pixels
-#duck mu and covariance
+def url_to_image(url):
+    """Download image from a URL and convert to OpenCV format."""
+    resp = urllib.request.urlopen(url)
+    image = np.asarray(bytearray(resp.read()), dtype="uint8")
+    return cv2.imdecode(image, cv2.IMREAD_COLOR)
+
+# Base GitHub raw URL (adjust this to your GitHub raw URL)
+base_url = 'https://raw.githubusercontent.com/vinothsomasundaram/Extraction-of-Pixels-of-Ducks-using-Bayes-Classifier/main/'
+
+# Load duck images
+duck_images = []
+for i in range(13):
+    url = base_url + f'Duck/duck{i+1}.jpg'
+    try:
+        img = url_to_image(url)
+        data_matrix = np.reshape(img, (-1, 3))
+        duck_images.append(data_matrix)
+    except:
+        print(f"Failed to load: {url}")
+
+duck_data = np.vstack(duck_images)
+
+# Load non-duck images
+non_duck_images = []
+for i in range(12):
+    url = base_url + f'Non_Duck/nonduck{i+1}.jpg'
+    try:
+        img = url_to_image(url)
+        data_matrix = np.reshape(img, (-1, 3))
+        non_duck_images.append(data_matrix)
+    except:
+        print(f"Failed to load: {url}")
+
+non_duck_data = np.vstack(non_duck_images)
+
+# Gaussian modeling
 mu_duck = np.mean(duck_data, axis=0)
 cov_duck = np.cov(duck_data.T)
-#non_duck mu and covariance
 mu_non_duck = np.mean(non_duck_data, axis=0)
 cov_non_duck = np.cov(non_duck_data.T)
-print (mu_non_duck)
-print (cov_non_duck)
-#Probability with non_duck sample
-test_img1 = cv2.imread(‘D:<\\yourpath\\full_duck7.jpg'>)
-test_data_matrix1 = np.reshape(test_img1, (test_img1.shape[0]*test_img1.shape[1], 3))
-#print (test_data_matrix)
 
-prob_non_ducks1 = multivariate_normal.pdf(test_data_matrix1, mean=mu_non_duck, cov=cov_non_duck)
-prob_ducks1 = multivariate_normal.pdf(test_data_matrix1, mean=mu_duck, cov=cov_duck)
+# Load test image (original image containing duck and background)
+test_img_url = base_url + 'full_duck.jpg'
+test_img = url_to_image(test_img_url)
+test_data_matrix = np.reshape(test_img, (-1, 3))
 
-duck_mask = prob_duck1>prob_non_duck1
+# Compute likelihood
+prob_ducks = multivariate_normal.pdf(test_data_matrix, mean=mu_duck, cov=cov_duck)
+prob_non_ducks = multivariate_normal.pdf(test_data_matrix, mean=mu_non_duck, cov=cov_non_duck)
 
-#duck_mask = prob_ducks1<5.0e-07
+# Generate duck segmentation mask
+duck_mask = prob_ducks > prob_non_ducks
+duck_mask = duck_mask.astype(np.uint8)
+duck_mask = np.reshape(duck_mask, (test_img.shape[0], test_img.shape[1]))
 
-duck_mask = np.reshape(duck_mask, (test_img1.shape[0],test_img1.shape[1]))
-out_img = test_img1.copy()
+# Apply mask
+segmented_img = test_img.copy()
 for c in range(3):
-      out_img[:,:,c] = test_img1[:,:,c]*duck_mask
-cv2.namedWindow("out", cv2.WINDOW_NORMAL)
-cv2.imshow('out', out_img)
-cv2.namedWindow("original", cv2.WINDOW_NORMAL)
-cv2.imshow('original', test_img1)
+    segmented_img[:,:,c] = segmented_img[:,:,c] * duck_mask
+
+# Show results
+cv2.imshow('Original Image', test_img)
+cv2.imshow('Segmented Duck Image', segmented_img)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
